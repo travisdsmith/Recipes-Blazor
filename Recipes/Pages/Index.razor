@@ -1,0 +1,50 @@
+﻿@page "/"
+@using Recipes.Context
+@inject RecipeContext _db
+@inject AuthenticationStateProvider _auth
+@inject ISnackbar _snackbar
+@inject NavigationManager _navMan
+
+<PageTitle>Recipes</PageTitle>
+
+<MudText Typo="Typo.h3">Quick Actions</MudText>
+<MudButtonGroup Color="Color.Primary" Variant="Variant.Filled" OverrideStyles="false">
+    <MudButton Variant="Variant.Filled" Color="Color.Dark" OnClick=@(()=>_navMan.NavigateTo("recipe/add"))>Add a Recipe</MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick=@(()=>_navMan.NavigateTo("search"))>Search for Recipes</MudButton>
+</MudButtonGroup>
+
+<br />
+<br />
+<br />
+
+<RecipesTable Data="@Recipes">
+    <NoResultsFoundTemplate>
+        <MudText Typo="Typo.body1">You don't have any favorites yet.</MudText>
+    </NoResultsFoundTemplate>
+</RecipesTable>
+
+@code {
+    private List<Recipes.Models.Recipe> Recipes { get; set; } = new List<Recipes.Models.Recipe>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        await base.OnInitializedAsync();
+    }
+
+    public async Task RemoveFromFavorites(int id)
+    {
+        var user = await _auth.GetAuthenticationStateAsync();
+        _db.Remove(_db.Favorites.Single(s => s.RecipeId == id && s.UserId == user.User.Identity!.Name));
+        await _db.SaveChangesAsync();
+        await LoadData();
+        _snackbar.Add("Recipe removed from your favorites.", Severity.Success);
+    }
+
+    public async Task LoadData()
+    {
+        var user = await _auth.GetAuthenticationStateAsync();
+        Recipes = _db.Recipes.Where(w => _db.Favorites.Where(w => w.UserId == user.User.Identity!.Name).Select(s => s.RecipeId).Contains(w.Id)).ToList();
+        StateHasChanged();
+    }
+}

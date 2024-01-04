@@ -1,0 +1,165 @@
+﻿@page "/recipe/{Id:int}"
+@using Recipes.Context
+@using Recipes.Models
+@inject RecipeContext _db
+@inject ISnackbar _snackbar
+@inject AuthenticationStateProvider _auth
+@inject IDialogService _dialogService
+
+<PageTitle>@Recipe.Title - Recipes</PageTitle>
+
+<MudBreadcrumbs Items="Items" Separator=">"></MudBreadcrumbs>
+
+<MudText Typo="Typo.h3" GutterBottom="true">@Recipe.Title</MudText>
+
+
+<div class="d-flex justify-center">
+    @if (!Recipe.Trash)
+    {
+        <MudButtonGroup Color="Color.Primary" Variant="Variant.Filled" OverrideStyles="false">
+            <MudButton Variant="@Variant.Filled" Color="Color.Primary" OnClick="@OpenNoteDialog">Add a Note</MudButton>
+            <MudButton Variant="@Variant.Filled" Color="Color.Secondary">Print</MudButton>
+
+            @if (IsFavorite)
+            {
+                <MudButton Variant="@Variant.Filled" Color="Color.Tertiary" OnClick="@RemoveFromFavorites">Remove Favorite</MudButton>
+            }
+            else
+            {
+                <MudButton Variant="@Variant.Filled" Color="Color.Success" OnClick="@AddToFavorites">Favorite</MudButton>
+            }
+
+            <MudButton Variant="@Variant.Filled" Color="Color.Error" OnClick="@MoveToTrash">Trash</MudButton>
+            <MudButton Variant="@Variant.Filled" Color="Color.Warning" Href=@Href>Edit</MudButton>
+        </MudButtonGroup>
+    }
+    else
+    {
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="@RestoreFromTrash">Restore Recipe</MudButton>
+    }
+</div>
+
+<br />
+
+@foreach (var line in @Recipe.Content.Replace("\r", "").Split('\n'))
+{
+    if (line == "" || line == string.Empty || line == null)
+    {
+        <br />
+    }
+    else
+    {
+        <MudText Typo="Typo.body1">@line</MudText>
+    }
+
+}
+
+@if (Recipe.Notes.Any())
+{
+    <br />
+    <br />
+    <br />
+    <MudText Typo="Typo.h4">Notes</MudText>
+    foreach (var note in Recipe.Notes)
+    {
+        <MudText Typo="Typo.body1">@note.Content (@note.UserId | <MudButton OnClick="@( () => RemoveNote(note.Id) )">delete</MudButton>)</MudText>
+        <MudDivider DividerType="DividerType.Middle" />
+    }
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    private Recipe Recipe { get; set; } = new Recipe();
+    private List<BreadcrumbItem> Items = new List<BreadcrumbItem>();
+    private string Href { get; set; } = string.Empty;
+    private bool IsFavorite { get; set; } = false;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Recipe = _db.Recipes.Single(s => s.Id == Id);
+        _db.Entry(Recipe).Collection(c => c.Notes).Load();
+        Href = $"/recipe/edit/{Id}";
+
+        Items = new List<BreadcrumbItem>
+        {
+            new BreadcrumbItem(_db.Categories.Single(s=>s.Id == Recipe.CategoryId).Name, href: $"/category/{Recipe.CategoryId}"),
+            new BreadcrumbItem(Recipe.Title, href: $"/recipe/{Recipe.Id}")
+        };
+
+        var user = await _auth.GetAuthenticationStateAsync();
+        IsFavorite = _db.Favorites.Where(w => w.RecipeId == Id && w.UserId == user.User.Identity!.Name).Any();
+
+        await base.OnParametersSetAsync();
+    }
+
+    private async Task OpenNoteDialog()
+    {
+        DialogParameters parameters = new DialogParameters();
+        parameters.Add("RecipeId", Id);
+
+        var dialog = _dialogService.Show<Shared.NoteDialog>(
+            "Add a note",
+            parameters,
+            new DialogOptions { CloseOnEscapeKey = true }
+        );
+
+        await HandleDialog(dialog);
+    }
+
+    private async Task RemoveNote(int id)
+    {
+        DialogParameters parameters = new DialogParameters();
+        parameters.Add("Id", id);
+
+        var dialog = _dialogService.Show<Shared.ConfirmDialog>(
+            "Remove note",
+            parameters,
+            new DialogOptions { CloseOnEscapeKey = true }
+        );
+
+        await HandleDialog(dialog);
+    }
+
+    private async Task HandleDialog(IDialogReference dialogReference)
+    {
+        var result = await dialogReference.Result;
+
+        if (!result.Cancelled)
+        {
+            Recipe.Notes = _db.Notes.Where(w => w.RecipeId == Id).ToList();
+        }
+    }
+
+    public async Task AddToFavorites()
+    {
+        var user = await _auth.GetAuthenticationStateAsync();
+        _db.Favorites.Add(new Models.Favorite { RecipeId = Id, UserId = user.User.Identity!.Name! });
+        await _db.SaveChangesAsync();
+        IsFavorite = true;
+        _snackbar.Add("Recipe added to your favorites.", Severity.Success);
+    }
+
+    public async Task RemoveFromFavorites()
+    {
+        var user = await _auth.GetAuthenticationStateAsync();
+        _db.Remove(_db.Favorites.Single(s => s.RecipeId == Id && s.UserId == user.User.Identity!.Name));
+        await _db.SaveChangesAsync();
+        IsFavorite = false;
+        _snackbar.Add("Recipe removed from your favorites.", Severity.Success);
+    }
+
+    public async Task MoveToTrash()
+    {
+        _db.Recipes.Single(s => s.Id == Id).Trash = true;
+        await _db.SaveChangesAsync();
+        _snackbar.Add("Recipe added to trash.", Severity.Warning);
+    }
+
+    public async Task RestoreFromTrash()
+    {
+        _db.Recipes.Single(s => s.Id == Id).Trash = false;
+        await _db.SaveChangesAsync();
+        _snackbar.Add("Recipe removed from trash.", Severity.Success);
+    }
+}

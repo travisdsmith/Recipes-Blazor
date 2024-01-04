@@ -1,0 +1,18 @@
+﻿@inject Recipes.Context.RecipeContext _db
+@inject NavigationManager _navMan
+
+<MudNavMenu>
+    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
+    <MudNavLink Href="search" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Search">Search</MudNavLink>
+    <MudNavLink Href="recipe/add" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Add">Add Recipe</MudNavLink>
+    <MudNavLink Href="trash" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Delete">Trash Can</MudNavLink>
+    <MudDivider Class="my-2" />
+    <MudText Typo="Typo.body2" Class="px-4 mud-text-secondary">Categories</MudText>
+    @{
+        var categories = _db.Categories.OrderBy(s => s.Name);
+        foreach (var category in categories)
+        {
+            <MudNavLink Href="@($"/category/{category.Id}")" Icon="@Icons.Material.Filled.Folder">@category.Name</MudNavLink>
+        }
+    }
+</MudNavMenu>

@@ -1,0 +1,29 @@
+﻿@page "/category/{Id:int}"
+@using Recipes.Context
+@inject RecipeContext _db
+@inject ISnackbar _snackbar
+@inject NavigationManager _navMan
+
+<PageTitle>@CategoryName - Recipes</PageTitle>
+
+<MudText Typo="Typo.h3" GutterBottom="true">@CategoryName</MudText>
+
+<RecipesTable Data="@(_db.Recipes.Where(w => w.CategoryId == Id && w.Trash == false).ToList())">
+    <NoResultsFoundTemplate>
+        <MudText Typo="Typo.body1">There are no recipes in this category.</MudText>
+    </NoResultsFoundTemplate>
+</RecipesTable>
+
+    @code {
+    [Parameter]
+    public int Id { get; set; }
+    private string CategoryName { get; set; } = "";
+    private bool ConfirmModalVisible = false;
+
+    protected override void OnParametersSet()
+    {
+        CategoryName = _db.Categories.Single(w => w.Id == Id).Name;
+
+        base.OnParametersSet();
+    }
+}

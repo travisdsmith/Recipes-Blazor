@@ -1,0 +1,32 @@
+﻿@using Recipes.Context
+@using Recipes.Models
+@inject RecipeContext _db
+@inject AuthenticationStateProvider _auth
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField T="string" Label="Note" Lines="5" @bind-Value="ContentValue" Required="true" RequiredError="Please enter a note." />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Ok</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public int RecipeId { get; set; }
+    string ContentValue { get; set; } = string.Empty;
+
+    async Task Submit(){
+        var authstate = await _auth.GetAuthenticationStateAsync();
+
+        Note note = new Note { RecipeId = RecipeId, Content = ContentValue, UserId = authstate.User.Identity!.Name! };
+        _db.Notes.Add(note);
+        _db.SaveChanges();
+        MudDialog.Close(DialogResult.Ok(note.Id));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}
+

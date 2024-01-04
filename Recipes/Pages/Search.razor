@@ -1,0 +1,52 @@
+﻿@page "/search"
+@using Recipes.Context
+@inject RecipeContext _db
+
+<PageTitle>Search - Recipes</PageTitle>
+
+<MudText Typo="Typo.h3" GutterBottom="true">Search</MudText>
+
+<MudForm>
+    <MudTextField @bind-Value="SearchValue" Label="What do you want to search for?" Variant="Variant.Outlined"></MudTextField>
+    <MudRadioGroup T="string" @bind-Value="@SelectedOption">
+        <MudRadio T="string" Value="@("Title")" Color="Color.Primary">Just the title</MudRadio>
+        <MudRadio T="string" Value="@("Content")" Color="Color.Primary">The title and recipe</MudRadio>
+    </MudRadioGroup>
+</MudForm>
+<MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@QueryRecipes">Search</MudButton>
+<br/><br/>
+<RecipesTable Data="@Recipes">
+    <NoResultsFoundTemplate>
+        <MudText Typo="Typo.body1">No recipes found.</MudText>
+    </NoResultsFoundTemplate>
+</RecipesTable>
+
+@code {
+    public string SelectedOption { get; set; } = "Title";
+    public string SearchValue { get; set; } = string.Empty;
+    public List<Recipes.Models.Recipe> Recipes { get; set; } = new List<Recipes.Models.Recipe>() { };
+
+    public void QueryRecipes()
+    {
+        if (SearchValue == null || SearchValue.Trim() == "")
+        {
+            Recipes = _db.Recipes.ToList();
+        }
+        else
+        {
+            var searchTerms = (SearchValue.Split(' ')).Select(s=>s.Trim()).Where(w => w != null || w != "" || w != string.Empty).ToList();
+            if (SelectedOption == "Title")
+            {
+                Recipes = _db.Recipes.ToList();
+                Recipes = Recipes.Where(w => searchTerms.Any(a => w.Title.Contains(a, StringComparison.InvariantCultureIgnoreCase))).ToList();
+            }
+            else if (SelectedOption == "Content")
+            {
+                Recipes = _db.Recipes.ToList();
+                Recipes = Recipes.Where(w => searchTerms.Any(a => w.Title.Contains(a, StringComparison.InvariantCultureIgnoreCase)) || searchTerms.Any(a => w.Content.Contains(a, StringComparison.InvariantCultureIgnoreCase))).ToList();
+            }
+        }
+
+        StateHasChanged();
+    }
+}

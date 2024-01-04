@@ -1,0 +1,104 @@
+﻿@page "/recipe/add"
+@page "/recipe/edit/{Id:int}"
+@using Recipes.Context
+@inject RecipeContext _db
+@inject ISnackbar _snackbar
+@inject NavigationManager _navMan
+
+<PageTitle>@Function Recipe - Recipes</PageTitle>
+
+<MudText Typo="Typo.h3" GutterBottom="true">
+    @Function Recipe
+</MudText>
+
+<MudTextField @bind-Value="TitleValue" Label="Title" Variant="Variant.Outlined" Required=true MaxLength="255"></MudTextField>
+<MudAutocomplete T="string" Variant="Variant.Outlined" Label="Category" @bind-Value="CategoryValue" SearchFunc="Search"
+                 ResetValueOnEmptyText="true" Required=true
+                 CoerceText="false" CoerceValue="true" MaxLength="255" />
+<MudTextField @bind-Value="RecipeValue" T="string" Label="Recipe" Variant="Variant.Outlined" Required=true Lines="20" />
+<br />
+<MudButton Variant="Variant.Filled" Size="Size.Large" Color="Color.Primary" OnClick="Save">@Function</MudButton>
+<br />
+<br />
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+    public string Function { get; set; } = string.Empty;
+    public string TitleValue { get; set; } = string.Empty;
+    public string RecipeValue { get; set; } = string.Empty;
+    public string CategoryValue { get; set; } = string.Empty;
+    public List<Models.Category> Categories { get; set; } = new List<Models.Category>();
+    public Models.Recipe Recipe { get; set; } = new Models.Recipe();
+
+    protected override void OnInitialized()
+    {
+        Categories = _db.Categories.ToList();
+        base.OnInitialized();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (Id != null)
+        {
+            Function = "Update";
+            Recipe = _db.Recipes.Single(s => s.Id == Id);
+            TitleValue = Recipe.Title;
+            RecipeValue = Recipe.Content;
+            CategoryValue = Recipe.Category.Name;
+        }
+        else
+        {
+            Function = "Add";
+            TitleValue = string.Empty;
+            RecipeValue = string.Empty;
+            CategoryValue = string.Empty;
+        }
+
+        base.OnParametersSet();
+    }
+
+    private async Task Save()
+    {
+        var category = _db.Categories.SingleOrDefault(s => s.Name == CategoryValue);
+
+        if (category == null)
+        {
+            category = new Models.Category { Name = CategoryValue };
+            _db.Categories.Add(category);
+            await _db.SaveChangesAsync();
+            StateHasChanged();
+            _snackbar.Add("A new category has been added.", Severity.Success);
+        }
+
+        var recipe = new Models.Recipe();
+
+        if (Id == null)
+        {
+            recipe.Title = TitleValue;
+            recipe.Content = RecipeValue;
+            recipe.CategoryId = category.Id;
+            recipe.Trash = false;
+            _db.Recipes.Add(recipe);
+        }
+        else
+        {
+            recipe = _db.Recipes.Single(s => s.Id == Id);
+            recipe.Title = TitleValue;
+            recipe.Content = RecipeValue;
+            recipe.CategoryId = category.Id;
+        }
+
+        await _db.SaveChangesAsync();
+        _snackbar.Add("Recipe has been saved.", Severity.Success);
+        _navMan.NavigateTo($"/recipe/{recipe.Id}", true);
+    }
+
+    private async Task<IEnumerable<string>> Search(string value)
+    {
+        // if text is null or empty, show complete list
+        if (string.IsNullOrEmpty(value))
+            return Categories.Select(s => s.Name);
+        return Categories.Where(w => w.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(s => s.Name);
+    }
+}

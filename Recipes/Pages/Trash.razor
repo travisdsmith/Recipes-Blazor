@@ -1,0 +1,62 @@
+﻿@page "/trash"
+@inject ISnackbar _snackbar
+@inject IDialogService _dialogService
+@using Recipes.Context
+@inject RecipeContext _db
+
+<PageTitle>Add Recipe - Recipes</PageTitle>
+
+<MudText Typo="Typo.h3" GutterBottom="true">Trash</MudText>
+
+<RecipesTable Data="@Recipes">
+    <NoResultsFoundTemplate>
+        <MudText Typo="Typo.body1">There is nothing in the trash.</MudText>
+    </NoResultsFoundTemplate>
+    <ResultsPrefixTemplate>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="ShowModal">Empty Trash</MudButton>
+
+        <br />
+        <br />
+    </ResultsPrefixTemplate>
+</RecipesTable>
+
+<MudDialog IsVisible="ConfirmModalVisible">
+    <DialogContent>
+        <MudText>Do you really want to delete these recipes?</MudText>
+        <MudText>
+            This process cannot be undone.
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="HideModal">Cancel</MudButton>
+        <MudButton Color="Color.Error" Variant="Variant.Filled" OnClick="EmptyTrash">Delete</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private bool ConfirmModalVisible = false;
+    private List<Recipes.Models.Recipe> Recipes = new List<Recipes.Models.Recipe>() { };
+
+    void ShowModal() => ConfirmModalVisible = true;
+
+    void HideModal() => ConfirmModalVisible = false;
+
+    protected override void OnInitialized()
+    {
+        Recipes = _db.Recipes.Where(w => w.Trash == true).ToList();
+        base.OnInitialized();
+    }
+
+    async Task EmptyTrash()
+    {
+        var recipesToDelete = _db.Recipes.Where(w => w.Trash == true);
+        _db.RemoveRange(_db.Notes.Where(w => recipesToDelete.Select(s=>s.Id).Contains(w.RecipeId)));
+        _db.RemoveRange(_db.Favorites.Where(w => recipesToDelete.Select(s => s.Id).Contains(w.RecipeId)));
+        _db.RemoveRange(recipesToDelete);
+        await _db.SaveChangesAsync();
+        HideModal();
+        _snackbar.Add("Trash has been emptied.", Severity.Success);
+        Recipes = _db.Recipes.Where(w => w.Trash == true).ToList();
+        StateHasChanged();
+    }
+}

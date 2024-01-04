@@ -1,0 +1,30 @@
+﻿@inject NavigationManager _navMan
+
+@if (Data.Any())
+{
+    @ResultsPrefixTemplate
+
+    <MudTable Items="@Data" Hover="true" Breakpoint="Breakpoint.Sm">
+        <HeaderContent>
+            <MudTh></MudTh>
+            <MudTh>Name</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel=""><MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.RemoveRedEye" Size="Size.Small" OnClick="@(()=>_navMan.NavigateTo($"recipe/{context.Id}"))"> View</MudButton></MudTd>
+            <MudTd DataLabel="Name">@context.Title</MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+else
+{
+    @NoResultsFoundTemplate
+}
+
+@code{
+    [Parameter, EditorRequired]
+    public List<Recipes.Models.Recipe> Data { get; set; } = new List<Recipes.Models.Recipe>();
+    [Parameter, EditorRequired]
+    public RenderFragment? NoResultsFoundTemplate { get; set; }
+    [Parameter]
+    public RenderFragment? ResultsPrefixTemplate { get; set; }
+}
